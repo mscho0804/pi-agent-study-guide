@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pi Coding Agent 실전 스터디 핸드북</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --background: #f8fafc;
+      --foreground: #0f172a;
+      --card: #ffffff;
+      --secondary: #f1f5f9;
+      --muted-foreground: #475569;
+      --primary: #10b981;
+      --primary-foreground: #052e16;
+      --border: #e2e8f0;
+    }
+    html.dark {
+      --background: #090d16;
+      --foreground: #f1f5f9;
+      --card: #111827;
+      --secondary: #1e293b;
+      --muted-foreground: #94a3b8;
+      --primary: #10b981;
+      --primary-foreground: #052e16;
+      --border: #334155;
+    }
+    .guide-card {
+      transition: all 0.2s ease;
+    }
+    .guide-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--primary);
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-6 md:p-10 min-h-screen">
+  <div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- Top Nav -->
+    <div class="flex flex-wrap items-center justify-between gap-3 bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-3 text-xs">
+      <div class="flex flex-wrap items-center gap-2 font-medium">
+        <a href="index.html" class="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-bold">🏠 홈 목차</a>
+        <a href="pi_agent_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">1. Pi 아키텍처 & Tool·Skill·Command</a>
+        <a href="git_worktree_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">2. Git Worktree 병렬 워크플로우</a>
+        <a href="llm_json_and_cache_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">3. LLM JSON 스트리밍 & KV 캐시 경제학</a>
+      </div>
+      <button onclick="document.documentElement.classList.toggle('dark')" class="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--secondary)] font-mono">
+        🌗 테마 전환
+      </button>
+    </div>
+
+    <!-- Hero -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 space-y-4">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--secondary)] text-emerald-400 text-xs font-mono font-bold">
+        <span>⬛ S+++ Tier Agent Harness Study Pack</span>
+        <span>•</span>
+        <span>Pi (pi.dev) Deep Dive</span>
+      </div>
+      <h1 class="text-3xl md:text-4xl font-bold tracking-tight">
+        Pi Coding Agent 실전 스터디 핸드북
+      </h1>
+      <p class="text-[var(--muted-foreground)] text-sm md:text-base leading-relaxed">
+        회사에서 Pi 에이전트를 200% 활용하고 직접 익스텐션과 스킬을 설계하기 위한 인터랙티브 가이드 모음집입니다. 각 카드를 클릭하면 시뮬레이터와 코드 예제가 포함된 상세 페이지로 이동합니다.
+      </p>
+    </div>
+
+    <!-- 3 Guide Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <a href="pi_agent_guide.html" class="guide-card block bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-bold text-emerald-400">PART 01</span>
+          <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">pi_agent_guide.html</span>
+        </div>
+        <h2 class="text-lg font-bold">Pi 코딩 에이전트 완벽 가이드</h2>
+        <ul class="text-xs text-[var(--muted-foreground)] space-y-2 leading-relaxed">
+          <li>• 4계층 아키텍처 (<code>pi-ai</code>, <code>pi-agent-core</code>, <code>pi-tui</code>, <code>pi-coding-agent</code>)</li>
+          <li>• 5단계 에이전트 루프 & JSONL 트리 히스토리</li>
+          <li>• <code>/tree</code> 컨텍스트 분기 vs 작업 디렉토리 독립성</li>
+          <li>• <strong><code>registerTool</code> vs <code>SKILL.md</code> vs <code>registerCommand</code> 완벽 비교</strong></li>
+        </ul>
+        <div class="pt-2 text-xs font-bold text-emerald-400">가이드 열기 →</div>
+      </a>
+
+      <a href="git_worktree_guide.html" class="guide-card block bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-bold text-sky-400">PART 02</span>
+          <span class="text-xs px-2 py-0.5 rounded bg-sky-500/15 text-sky-400 font-mono">git_worktree_guide.html</span>
+        </div>
+        <h2 class="text-lg font-bold">Git Worktree + 병렬 Pi 워크플로우</h2>
+        <ul class="text-xs text-[var(--muted-foreground)] space-y-2 leading-relaxed">
+          <li>• 왜 AI 에이전트 시대에 <code>git stash</code> 대신 <code>git worktree</code>를 쓰는가?</li>
+          <li>• <code>.git</code> 금고 공유 구조와 디스크 절약 원리</li>
+          <li>• 실무 필수 명령어 3개 (<code>add</code>, <code>list</code>, <code>remove</code>)</li>
+          <li>• 복붙해서 바로 쓰는 <code>pi-wt</code> 병렬 런처 쉘 함수</li>
+        </ul>
+        <div class="pt-2 text-xs font-bold text-sky-400">가이드 열기 →</div>
+      </a>
+
+      <a href="llm_json_and_cache_guide.html" class="guide-card block bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-bold text-amber-400">PART 03</span>
+          <span class="text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono">llm_json_and_cache_guide.html</span>
+        </div>
+        <h2 class="text-lg font-bold">LLM JSON 스트리밍 & 캐시 경제학</h2>
+        <ul class="text-xs text-[var(--muted-foreground)] space-y-2 leading-relaxed">
+          <li>• Request JSON & 프로바이더별 Thinking 파라미터 해부</li>
+          <li>• SSE 스트리밍 청크와 무상태(Stateless) 블랙박스 모델 교체</li>
+          <li>• 사과·포도·바나나 대화 중복 전송과 Prefix KV Cache (90% 할인)</li>
+          <li>• <strong><code>/compact</code>의 역설(Cache Busting)과 5분 캐시 수명(TTL) 타이머</strong></li>
+        </ul>
+        <div class="pt-2 text-xs font-bold text-amber-400">가이드 열기 →</div>
+      </a>
+    </div>
+
+  </div>
+</body>
+</html>

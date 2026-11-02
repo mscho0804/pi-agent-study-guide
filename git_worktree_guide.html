@@ -1,0 +1,390 @@
+﻿<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Git Worktree + Pi 병렬 개발 입문 가이드</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --background: #f8fafc;
+      --foreground: #0f172a;
+      --card: #ffffff;
+      --secondary: #f1f5f9;
+      --muted-foreground: #475569;
+      --primary: #10b981;
+      --primary-foreground: #052e16;
+      --border: #e2e8f0;
+    }
+    html.dark {
+      --background: #090d16;
+      --foreground: #f1f5f9;
+      --card: #111827;
+      --secondary: #1e293b;
+      --muted-foreground: #94a3b8;
+      --primary: #10b981;
+      --primary-foreground: #052e16;
+      --border: #334155;
+    }
+    .wt-card {
+      transition: all 0.25s ease;
+    }
+    .wt-card:hover {
+      transform: translateY(-2px);
+    }
+    pre {
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-6 md:p-8">
+  <div class="max-w-5xl mx-auto space-y-6">
+    <!-- Top Navigation Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-3 bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-3 text-xs">
+      <div class="flex flex-wrap items-center gap-2 font-medium">
+        <a href="index.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">🏠 홈 목차</a>
+        <a href="pi_agent_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">1. Pi 아키텍처 & Tool·Skill·Command</a>
+        <a href="git_worktree_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">2. Git Worktree 병렬 워크플로우</a>
+        <a href="llm_json_and_cache_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">3. LLM JSON 스트리밍 & KV 캐시 경제학</a>
+      </div>
+      <button onclick="document.documentElement.classList.toggle('dark')" class="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--secondary)] font-mono">
+        🌗 테마 전환
+      </button>
+    </div>
+
+    <!-- Header -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--secondary)] text-[var(--foreground)] text-xs font-medium">
+        <span>🌿 Git Worktree 입문</span>
+        <span>×</span>
+        <span>🤖 병렬 Pi Agent 워크플로우</span>
+      </div>
+      <h1 class="text-2xl md:text-3xl font-bold tracking-tight">
+        Git Worktree: 내 컴퓨터에 'AI 개발자 전용 작업실' 여러 개 만들기
+      </h1>
+      <p class="text-[var(--muted-foreground)] text-sm md:text-base leading-relaxed">
+        이름은 거창해 보이지만 원리는 허무할 정도로 간단합니다. 한 번 이해하고 나면 왜 AI 에이전트 시대에 <code>git stash</code> 대신 무조건 <code>git worktree</code>를 쓰는지 바로 무릎을 탁 치게 됩니다!
+      </p>
+    </div>
+
+    <!-- Section 1: The Problem vs Solution -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Old Way -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-bold text-rose-500 uppercase">기존 방식 (폴더 1개 = 브랜치 1개)</span>
+          <span class="text-xs px-2 py-0.5 rounded bg-rose-500/15 text-rose-400">병목 발생</span>
+        </div>
+        <h3 class="text-lg font-bold"><code>git checkout</code> & <code>git stash</code>의 고통</h3>
+        <ul class="text-xs text-[var(--muted-foreground)] space-y-2 leading-relaxed">
+          <li>• <strong>상황:</strong> 내 폴더(<code>my-app/</code>)에서 Pi에게 "결제 리팩터링해 줘"라고 시켜서 파일 15개를 한창 고치는 중입니다.</li>
+          <li>• <strong>돌발 상황:</strong> 갑자기 팀장님이 <em>"로그인 버튼 안 눌리는 핫픽스 지금 당장 올려주세요!"</em> 또는 <em>"방금 올린 PR 코드리뷰 좀 해주세요"</em>라고 합니다.</li>
+          <li>• <strong>참사:</strong> Pi를 강제 종료하고 → 고치던 코드를 <code>git stash</code>로 숨기고 → 브랜치를 바꿨다가 돌아오면 작업 흐름과 컨텍스트가 완전히 박살 납니다.</li>
+        </ul>
+      </div>
+
+      <!-- Worktree Way -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-bold text-emerald-500 uppercase">Worktree 방식 (저장소 1개 = 폴더 N개)</span>
+          <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400">멀티태스킹 치트키</span>
+        </div>
+        <h3 class="text-lg font-bold"><code>git worktree</code>: 공식 다중 분신술</h3>
+        <ul class="text-xs text-[var(--muted-foreground)] space-y-2 leading-relaxed">
+          <li>• <strong>핵심 원리:</strong> 무거운 <code>.git</code> 금고(커밋 역사, 브랜치 DB)는 원래 폴더에 <strong>딱 1개만 두고</strong>, 옆에 <strong>다른 브랜치가 열려 있는 새 작업 폴더</strong>만 1초 만에 뚝딱 연결해 줍니다.</li>
+          <li>• <strong>Pi와의 시너지:</strong> 1번 폴더에선 <strong>Pi 1호기</strong>가 결제 리팩터링을 계속 돌리게 놔두고, 나는 옆에 2번 폴더(Worktree)를 파서 <strong>Pi 2호기</strong>에게 핫픽스를 시키면 파일 충돌이 0%입니다!</li>
+          <li>• <strong>왜 clone을 또 안 하고?:</strong> <code>git clone</code>을 여러 번 하면 용량도 배로 들고 서로 커밋이 공유되지 않지만, Worktree는 한 몸이라 어디서 커밋하든 즉시 공유됩니다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 2: Interactive Worktree + Pi Simulator -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-5">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold">🎮 인터랙티브 시뮬레이터: Worktree로 Pi 3명 동시에 굴리기</h2>
+          <p class="text-xs text-[var(--muted-foreground)]">아래 버튼을 순서대로 눌러서 내 디스크에 어떤 일이 벌어지는지 직접 확인해 보세요!</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="addWorktree('hotfix')" id="btn-add-hotfix" class="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-medium hover:opacity-90">
+            + 1. 핫픽스 Worktree 생성
+          </button>
+          <button onclick="addWorktree('feature')" id="btn-add-feature" class="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-medium hover:opacity-90">
+            + 2. 신규기능 Worktree 생성
+          </button>
+          <button onclick="resetWorktrees()" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] border border-[var(--border)] text-xs font-medium hover:opacity-80">
+            ↺ 초기화
+          </button>
+        </div>
+      </div>
+
+      <!-- Terminal Command Log -->
+      <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 font-mono text-xs space-y-1">
+        <div class="text-[var(--muted-foreground)]"># 실행된 터미널 명령어</div>
+        <div id="sim-cmd-log" class="text-emerald-400 font-bold">$ cd ~/workspace/my-app && git worktree list</div>
+      </div>
+
+      <!-- Visual Folder Architecture -->
+      <div class="space-y-3">
+        <div class="text-xs font-mono text-[var(--muted-foreground)]">📁 ~/workspace/ (내 작업 폴더 구조)</div>
+        <div id="worktree-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Beginner's 4 Essential Commands -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+      <h2 class="text-xl font-bold">초보자는 딱 이 4줄만 알면 끝납니다</h2>
+      <p class="text-xs text-[var(--muted-foreground)]">복잡한 옵션 외울 필요 없이, 실무에서는 아래 4가지 패턴만 99% 사용합니다.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-500">1. 새 브랜치 따면서 옆 폴더로 방 파기</span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-[var(--card)]">가장 많이 씀</span>
+          </div>
+          <pre class="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 text-xs font-mono">git worktree add ../my-app-fix -b fix/login-bug</pre>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            현재 폴더 바깥(<code>../my-app-fix</code>)에 새 폴더를 만들고, 그 안에 <code>fix/login-bug</code>라는 새 브랜치를 생성해 체크아웃까지 한 방에 해줍니다.
+          </p>
+        </div>
+
+        <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-sky-500">2. 이미 있는 원격/로컬 브랜치로 방 파기</span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-[var(--card)]">PR 리뷰용</span>
+          </div>
+          <pre class="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 text-xs font-mono">git worktree add ../my-app-review feat/payment</pre>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            이미 존재하는 <code>feat/payment</code> 브랜치를 별도 폴더에 즉시 열어줍니다. 내 작업을 멈추지 않고 동료의 PR을 돌려서 테스트할 때 최고입니다.
+          </p>
+        </div>
+
+        <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-amber-500">3. 현재 열려 있는 Worktree 목록 확인</span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-[var(--card)]">상태 조회</span>
+          </div>
+          <pre class="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 text-xs font-mono">git worktree list</pre>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            지금 내 컴퓨터 어디에 어떤 브랜치 작업실들이 열려 있는지 경로와 커밋 해시를 한눈에 보여줍니다.
+          </p>
+        </div>
+
+        <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-rose-500">4. 작업 끝난 방 깔끔하게 철거하기</span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-[var(--card)]">정리</span>
+          </div>
+          <pre class="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 text-xs font-mono">git worktree remove ../my-app-fix</pre>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            PR을 올렸거나 머지가 끝나서 더 이상 필요 없는 Worktree 폴더를 삭제하고 Git의 연결 목록에서도 깔끔하게 지웁니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- Beginner FAQ / Pitfalls -->
+      <div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-2 text-xs">
+        <div class="font-bold text-amber-500">⚠️ 초보자가 무조건 한 번은 겪는 주의사항 2가지</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[var(--muted-foreground)] leading-relaxed">
+          <div>
+            <strong>1. "이미 체크아웃된 브랜치입니다" 에러 (`already checked out`)</strong><br>
+            Git은 꼬임을 방지하기 위해 <strong>똑같은 브랜치를 두 폴더에서 동시에 여는 것을 막습니다.</strong> <code>main</code>이 본진에 열려 있다면 Worktree에서는 항상 새 브랜치(<code>-b</code>)나 다른 브랜치를 열어야 합니다.
+          </div>
+          <div>
+            <strong>2. <code>node_modules</code>나 <code>.env</code> 파일은 공유되지 않습니다!</strong><br>
+            Git이 추적하지 않는 파일(<code>.gitignore</code> 대상)은 새 Worktree 폴더에 자동으로 복사되지 않습니다. 새 Worktree에 들어가면 <code>pnpm i</code>(또는 <code>npm i</code>)를 한 번 실행하거나 아래 자동화 스크립트로 연결해 주면 됩니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Ready-to-Use Automation Script -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-xl font-bold">🎁 실전 보너스: 명령어 한 줄로 Worktree 파고 Pi 바로 띄우기</h2>
+          <p class="text-xs text-[var(--muted-foreground)]">매번 경로 치고 <code>.env</code> 복사하기 귀찮으니까, 이 함수를 쉘 설정에 넣어두고 <code>pi-wt fix-login</code> 한 줄로 끝내세요!</p>
+        </div>
+        <div class="flex gap-1.5">
+          <button onclick="switchShell('zsh')" id="sh-btn-zsh" class="px-3 py-1.5 rounded-lg text-xs bg-[var(--primary)] text-[var(--primary-foreground)] font-medium">macOS / Linux (zsh/bash)</button>
+          <button onclick="switchShell('pwsh')" id="sh-btn-pwsh" class="px-3 py-1.5 rounded-lg text-xs bg-[var(--secondary)] border border-[var(--border)]">Windows (PowerShell)</button>
+        </div>
+      </div>
+
+      <div id="shell-code-box" class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 font-mono text-xs leading-relaxed">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const state = {
+      hotfix: false,
+      feature: false
+    };
+
+    function renderWorktrees() {
+      const grid = document.getElementById('worktree-grid');
+      let html = `
+        <!-- Main Worktree -->
+        <div class="wt-card bg-[var(--secondary)] border-2 border-emerald-500/60 rounded-xl p-4 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-mono font-bold text-sm">📂 my-app/ (본진)</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">branch: main</span>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border)] text-xs font-mono space-y-1">
+            <div class="text-amber-400 font-bold">🏦 .git/ (진짜 저장소 금고)</div>
+            <div class="text-[var(--muted-foreground)]">모든 커밋과 브랜치 역사를 보관하고 다른 Worktree들과 실시간 공유합니다.</div>
+          </div>
+          <div class="flex items-center justify-between text-xs pt-1">
+            <span class="text-[var(--muted-foreground)]">🤖 상태:</span>
+            <span class="font-semibold text-emerald-400">내가 직접 코드 확인 중</span>
+          </div>
+        </div>
+      `;
+
+      if (state.hotfix) {
+        html += `
+          <div class="wt-card bg-[var(--secondary)] border-2 border-sky-500/60 rounded-xl p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sm">📂 my-app-hotfix/</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 font-mono">branch: fix/login</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border)] text-xs font-mono space-y-1">
+              <div class="text-sky-400">🔗 .git (본진 금고로 연결된 포인터 파일)</div>
+              <div class="text-[var(--muted-foreground)]">용량 차지 없이 독립된 작업 파일들만 체크아웃됨!</div>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-1">
+              <span class="font-semibold text-sky-400">🤖 Pi 에이전트 1호기 열일 중...</span>
+              <button onclick="removeWorktree('hotfix')" class="px-2 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">철거</button>
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="border border-dashed border-[var(--border)] rounded-xl p-4 flex flex-col items-center justify-center text-center min-h-[160px] text-xs text-[var(--muted-foreground)] space-y-2">
+            <div>비어 있는 슬롯 1</div>
+            <button onclick="addWorktree('hotfix')" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] border border-[var(--border)] text-[var(--foreground)] hover:opacity-80">+ 핫픽스 Worktree 만들기</button>
+          </div>
+        `;
+      }
+
+      if (state.feature) {
+        html += `
+          <div class="wt-card bg-[var(--secondary)] border-2 border-purple-500/60 rounded-xl p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sm">📂 my-app-feature/</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 font-mono">branch: feat/dashboard</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border)] text-xs font-mono space-y-1">
+              <div class="text-purple-400">🔗 .git (본진 금고로 연결된 포인터 파일)</div>
+              <div class="text-[var(--muted-foreground)]">1호기와 파일 충돌 전혀 없이 동시 테스트 실행 중!</div>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-1">
+              <span class="font-semibold text-purple-400">🤖 Pi 에이전트 2호기 열일 중...</span>
+              <button onclick="removeWorktree('feature')" class="px-2 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">철거</button>
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="border border-dashed border-[var(--border)] rounded-xl p-4 flex flex-col items-center justify-center text-center min-h-[160px] text-xs text-[var(--muted-foreground)] space-y-2">
+            <div>비어 있는 슬롯 2</div>
+            <button onclick="addWorktree('feature')" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] border border-[var(--border)] text-[var(--foreground)] hover:opacity-80">+ 신규기능 Worktree 만들기</button>
+          </div>
+        `;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function addWorktree(type) {
+      state[type] = true;
+      const log = document.getElementById('sim-cmd-log');
+      if (type === 'hotfix') {
+        log.textContent = "$ git worktree add ../my-app-hotfix -b fix/login && cd ../my-app-hotfix && pi";
+      } else {
+        log.textContent = "$ git worktree add ../my-app-feature -b feat/dashboard && cd ../my-app-feature && pi";
+      }
+      renderWorktrees();
+    }
+
+    function removeWorktree(type) {
+      state[type] = false;
+      const log = document.getElementById('sim-cmd-log');
+      log.textContent = type === 'hotfix'
+        ? "$ git worktree remove ../my-app-hotfix  # 작업 완료 후 폴더 깔끔히 삭제!"
+        : "$ git worktree remove ../my-app-feature # 작업 완료 후 폴더 깔끔히 삭제!";
+      renderWorktrees();
+    }
+
+    function resetWorktrees() {
+      state.hotfix = false;
+      state.feature = false;
+      document.getElementById('sim-cmd-log').textContent = "$ cd ~/workspace/my-app && git worktree list";
+      renderWorktrees();
+    }
+
+    const shellScripts = {
+      zsh: `# ~/.zshrc 또는 ~/.bashrc 에 추가하세요
+# 사용법: 프로젝트 폴더 안에서 'pi-wt login-fix' 입력!
+pi-wt() {
+  local name=$1
+  if [ -z "$name" ]; then
+    echo "사용법: pi-wt <작업이름>"
+    return 1
+  fi
+  local repo_name=$(basename "$PWD")
+  local target_dir="../\${repo_name}-\${name}"
+
+  # 1. 새 Worktree 폴더 및 브랜치(feat/작업이름) 생성
+  git worktree add "$target_dir" -b "feat/\${name}" || return 1
+
+  # 2. 본진에 .env가 있으면 자동으로 복사
+  [ -f .env ] && cp .env "$target_dir/.env"
+
+  # 3. 해당 폴더로 이동 후 즉시 Pi 실행!
+  cd "$target_dir" && pi
+}`,
+      pwsh: `# PowerShell 프로필 ($PROFILE) 에 추가하세요
+# 사용법: 프로젝트 폴더 안에서 'pi-wt login-fix' 입력!
+function pi-wt {
+  param([Parameter(Mandatory=$true)][string]$Name)
+  $RepoName = Split-Path -Leaf (Get-Location)
+  $TargetDir = "../$RepoName-$Name"
+
+  # 1. 새 Worktree 폴더 및 브랜치(feat/작업이름) 생성
+  git worktree add $TargetDir -b "feat/$Name"
+  if ($LASTEXITCODE -ne 0) { return }
+
+  # 2. 본진에 .env가 있으면 자동으로 복사
+  if (Test-Path ".env") { Copy-Item ".env" "$TargetDir/.env" }
+
+  # 3. 해당 폴더로 이동 후 즉시 Pi 실행!
+  Set-Location $TargetDir
+  pi
+}`
+    };
+
+    function switchShell(type) {
+      const btnZsh = document.getElementById('sh-btn-zsh');
+      const btnPwsh = document.getElementById('sh-btn-pwsh');
+      if (type === 'zsh') {
+        btnZsh.className = "px-3 py-1.5 rounded-lg text-xs bg-[var(--primary)] text-[var(--primary-foreground)] font-medium";
+        btnPwsh.className = "px-3 py-1.5 rounded-lg text-xs bg-[var(--secondary)] border border-[var(--border)]";
+      } else {
+        btnPwsh.className = "px-3 py-1.5 rounded-lg text-xs bg-[var(--primary)] text-[var(--primary-foreground)] font-medium";
+        btnZsh.className = "px-3 py-1.5 rounded-lg text-xs bg-[var(--secondary)] border border-[var(--border)]";
+      }
+      document.getElementById('shell-code-box').innerHTML = `<pre>${shellScripts[type]}</pre>`;
+    }
+
+    renderWorktrees();
+    switchShell('zsh');
+  </script>
+</body>
+</html>
+

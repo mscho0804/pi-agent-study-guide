@@ -1,0 +1,724 @@
+﻿<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pi Coding Agent 완벽 가이드</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --background: #f8fafc;
+      --foreground: #0f172a;
+      --card: #ffffff;
+      --secondary: #f1f5f9;
+      --muted-foreground: #475569;
+      --primary: #10b981;
+      --primary-foreground: #052e16;
+      --border: #e2e8f0;
+    }
+    html.dark {
+      --background: #090d16;
+      --foreground: #f1f5f9;
+      --card: #111827;
+      --secondary: #1e293b;
+      --muted-foreground: #94a3b8;
+      --primary: #10b981;
+      --primary-foreground: #052e16;
+      --border: #334155;
+    }
+    .tab-btn.active {
+      background-color: var(--primary);
+      color: var(--primary-foreground);
+      font-weight: 600;
+    }
+    .step-node.active {
+      border-color: var(--primary);
+      background-color: var(--secondary);
+      transform: translateY(-2px);
+    }
+    .tree-node {
+      transition: all 0.2s ease;
+    }
+    .tree-node:hover {
+      transform: scale(1.02);
+    }
+    pre {
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-6 md:p-8">
+  <div class="max-w-5xl mx-auto space-y-6">
+    <!-- Top Navigation Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-3 bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-3 text-xs">
+      <div class="flex flex-wrap items-center gap-2 font-medium">
+        <a href="index.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">🏠 홈 목차</a>
+        <a href="pi_agent_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">1. Pi 아키텍처 & Tool·Skill·Command</a>
+        <a href="git_worktree_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">2. Git Worktree 병렬 워크플로우</a>
+        <a href="llm_json_and_cache_guide.html" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:opacity-80">3. LLM JSON 스트리밍 & KV 캐시 경제학</a>
+      </div>
+      <button onclick="document.documentElement.classList.toggle('dark')" class="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--secondary)] font-mono">
+        🌗 테마 전환
+      </button>
+    </div>
+
+    <!-- Header Banner -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-2">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--secondary)] text-[var(--foreground)] text-xs font-medium">
+            <span>⬛ S+++ Tier Minimalist Harness</span>
+            <span>•</span>
+            <span>pi.dev</span>
+          </div>
+          <h1 class="text-2xl md:text-3xl font-bold tracking-tight">
+            Pi Coding Agent: 입문에서 실전 개조까지
+          </h1>
+          <p class="text-[var(--muted-foreground)] text-sm md:text-base">
+            이미 Copilot Usage / Limit 익스텐션을 직접 만들어보셨다면 기본기는 끝났습니다! 이제 Pi가 내부적으로 어떻게 돌아가는지, 왜 고수들이 열광하는지 핵심 메커니즘을 파헤쳐 봅시다.
+          </p>
+        </div>
+        <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 shrink-0 text-xs font-mono space-y-1">
+          <div class="text-[var(--muted-foreground)]"># Core Philosophy</div>
+          <div>System Prompt: <span class="font-bold text-emerald-500">&lt; 1,000 tokens</span></div>
+          <div>Default Tools: <span class="font-bold text-amber-500">read, write, edit, bash</span></div>
+          <div>Extensibility: <span class="font-bold text-sky-500">100% TypeScript + Skills</span></div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex flex-wrap gap-2 mt-6 pt-5 border-t border-[var(--border)]">
+        <button onclick="switchTab('arch')" id="tab-arch" class="tab-btn active px-4 py-2 rounded-lg text-sm border border-[var(--border)] transition">
+          1. 동작 원리 & 아키텍처
+        </button>
+        <button onclick="switchTab('tree')" id="tab-tree" class="tab-btn px-4 py-2 rounded-lg text-sm border border-[var(--border)] bg-[var(--secondary)] transition">
+          2. 필살기: /tree & /compact
+        </button>
+        <button onclick="switchTab('ext')" id="tab-ext" class="tab-btn px-4 py-2 rounded-lg text-sm border border-[var(--border)] bg-[var(--secondary)] transition">
+          3. 확장 설계 (Extension vs Skill)
+        </button>
+        <button onclick="switchTab('tips')" id="tab-tips" class="tab-btn px-4 py-2 rounded-lg text-sm border border-[var(--border)] bg-[var(--secondary)] transition">
+          4. 회사 실전 활용 치트시트
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: Architecture & How It Works -->
+    <div id="panel-arch" class="space-y-6">
+      <!-- Why Minimalism Works -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <h2 class="text-xl font-bold">왜 Pi는 기능이 별로 없는 것처럼 보일까? (의도된 극단적 미니멀리즘)</h2>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">
+          다른 에이전트들은 수만 토큰짜리 거대한 시스템 프롬프트와 수십 개의 내장 툴, 강제 플랜 모드를 기본 탑재합니다. 하지만 시스템 프롬프트와 툴 정의가 길어질수록 <strong>LLM의 추론 집중력(Instruction Following)은 급격히 떨어지고 컨텍스트 비용만 증가</strong>합니다. Pi는 이를 정면 돌파하기 위해 <strong>1,000 토큰 미만의 초경량 시스템 프롬프트</strong>와 <strong>단 4개의 원시 도구</strong>만 남겼습니다.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+          <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-1">
+            <div class="font-mono font-bold text-sm text-emerald-500">1. read</div>
+            <div class="text-xs text-[var(--muted-foreground)]">파일 내용이나 이미지를 읽어 컨텍스트에 적재합니다.</div>
+          </div>
+          <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-1">
+            <div class="font-mono font-bold text-sm text-sky-500">2. write</div>
+            <div class="text-xs text-[var(--muted-foreground)]">새 파일을 생성하거나 전체 내용을 덮어씁니다.</div>
+          </div>
+          <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-1">
+            <div class="font-mono font-bold text-sm text-amber-500">3. edit</div>
+            <div class="text-xs text-[var(--muted-foreground)]">기존 파일의 특정 코드 블록만 정밀하게 치환합니다.</div>
+          </div>
+          <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 space-y-1">
+            <div class="font-mono font-bold text-sm text-rose-500">4. bash</div>
+            <div class="text-xs text-[var(--muted-foreground)]">검색(rg, fd), 테스트, git, 빌드 등 모든 명령을 실행합니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Agent Loop Simulator -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 class="text-xl font-bold">인터랙티브 시뮬레이터: Pi의 1턴(Turn)이 도는 과정</h2>
+            <p class="text-xs text-[var(--muted-foreground)]">아래 단계를 클릭해서 사용자 입력부터 익스텐션 훅, 툴 호출까지 어떻게 흐르는지 확인해 보세요.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="prevLoopStep()" class="px-3 py-1.5 rounded-lg bg-[var(--secondary)] border border-[var(--border)] text-xs font-medium hover:opacity-80">◀ 이전</button>
+            <button onclick="nextLoopStep()" class="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-medium hover:opacity-90">다음 단계 ▶</button>
+          </div>
+        </div>
+
+        <!-- Step Indicators -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+          <button onclick="setLoopStep(0)" id="loop-btn-0" class="step-node active text-left p-3 rounded-xl border border-[var(--border)] transition">
+            <div class="text-xs text-[var(--muted-foreground)] font-mono">STEP 01</div>
+            <div class="text-sm font-bold mt-0.5">프롬프트 & 컨텍스트 조합</div>
+          </button>
+          <button onclick="setLoopStep(1)" id="loop-btn-1" class="step-node text-left p-3 rounded-xl border border-[var(--border)] transition">
+            <div class="text-xs text-[var(--muted-foreground)] font-mono">STEP 02</div>
+            <div class="text-sm font-bold mt-0.5">LLM 스트리밍 호출</div>
+          </button>
+          <button onclick="setLoopStep(2)" id="loop-btn-2" class="step-node text-left p-3 rounded-xl border border-[var(--border)] transition">
+            <div class="text-xs text-[var(--muted-foreground)] font-mono">STEP 03</div>
+            <div class="text-sm font-bold mt-0.5">Tool 실행 & 이벤트 훅</div>
+          </button>
+          <button onclick="setLoopStep(3)" id="loop-btn-3" class="step-node text-left p-3 rounded-xl border border-[var(--border)] transition">
+            <div class="text-xs text-[var(--muted-foreground)] font-mono">STEP 04</div>
+            <div class="text-sm font-bold mt-0.5">재귀 루프 (Recursive)</div>
+          </button>
+          <button onclick="setLoopStep(4)" id="loop-btn-4" class="step-node text-left p-3 rounded-xl border border-[var(--border)] transition">
+            <div class="text-xs text-[var(--muted-foreground)] font-mono">STEP 05</div>
+            <div class="text-sm font-bold mt-0.5">트리 저장 & 컴팩션 체크</div>
+          </button>
+        </div>
+
+        <!-- Step Detail View -->
+        <div id="loop-detail" class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-5 space-y-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- 4-Layer Architecture -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <h2 class="text-xl font-bold">Pi를 구성하는 4개의 내부 레이어</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="border border-[var(--border)] rounded-xl p-4 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sm">1. pi-ai</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">모델 추상화 계층</span>
+            </div>
+            <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+              Anthropic, OpenAI, Google Gemini, GitHub Copilot, OpenRouter 등 15개 이상의 프로바이더 API와 구독(OAuth) 세션을 단일 스트리밍 인터페이스로 통합합니다. 만드신 Copilot Usage 익스텐션도 이 계층의 메타데이터와 맞닿아 있습니다.
+            </p>
+          </div>
+          <div class="border border-[var(--border)] rounded-xl p-4 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sm">2. pi-agent-core</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">상태 & 루프 엔진</span>
+            </div>
+            <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+              대화 턴(Turn)의 생명주기, 메시지 큐, 툴 스케줄링과 실행 결과를 관리하는 심장부입니다.
+            </p>
+          </div>
+          <div class="border border-[var(--border)] rounded-xl p-4 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sm">3. pi-tui</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">터미널 렌더링 엔진</span>
+            </div>
+            <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+              화면 깜빡임 없이 변경된 부분만 다시 그리는(Differential Rendering) 자체 제작 TUI 프레임워크입니다. 익스텐션으로 상태 표시줄(Status bar)이나 커스텀 오버레이 창을 띄울 수 있게 해줍니다.
+            </p>
+          </div>
+          <div class="border border-[var(--border)] rounded-xl p-4 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sm">4. pi-coding-agent</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">CLI 하네스</span>
+            </div>
+            <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+              우리가 터미널에 <code>pi</code>라고 쳤을 때 실행되는 패키지입니다. JSONL 트리 세션 저장, 컴팩션, 익스텐션/스킬 로더가 여기에 들어 있습니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: /tree & /compact -->
+    <div id="panel-tree" class="space-y-6 hidden">
+      <!-- Tree Session Simulator -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+          <div>
+            <span class="text-xs font-mono uppercase tracking-wider text-emerald-500 font-bold">Killer Feature #1</span>
+            <h2 class="text-xl font-bold">선형 채팅이 아닌 '방향성 트리(Directed Tree)' 세션과 <code>/tree</code></h2>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="setTreeMode('linear')" id="btn-mode-linear" class="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] bg-[var(--secondary)]">일반 에이전트 (선형 오염)</button>
+            <button onclick="setTreeMode('pi')" id="btn-mode-pi" class="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] bg-[var(--primary)] text-[var(--primary-foreground)] font-semibold">Pi의 /tree 분기 방식</button>
+          </div>
+        </div>
+
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">
+          코딩하다가 에이전트가 잘못된 라이브러리나 엉뚱한 방향으로 5~6턴 동안 삽질했을 때, 일반 에이전트에서는 <em>"아니 그거 말고 다른 방법으로 해봐"</em>라고 말해도 <strong>이미 실패한 코드와 에러 로그가 컨텍스트에 남아 모델을 계속 헷갈리게 만듭니다.</strong><br>
+          Pi에서는 <code>/tree</code>를 쳐서 <strong>삽질하기 직전 노드로 시간 여행(Rewind)한 뒤 새로운 가지(Branch)를 뻗어 깨끗한 컨텍스트로 다시 시작</strong>할 수 있습니다!
+        </p>
+
+        <!-- Visual Comparison Box -->
+        <div id="tree-visualizer" class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-5">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Smart Compaction -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <span class="text-xs font-mono uppercase tracking-wider text-sky-500 font-bold">Killer Feature #2</span>
+        <h2 class="text-xl font-bold">컨텍스트 폭발을 막는 스마트 컴팩션 (<code>/compact</code>)</h2>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">
+          대화가 길어져 모델의 컨텍스트 한계에 가까워지면(기본 여유 임계치 <code>16,384 토큰</code> 도달 시 자동 실행, 또는 <code>/compact</code> 수동 실행), Pi는 무식하게 옛날 대화를 잘라버리지 않고 <strong>과거 턴만 요약본으로 압축하고 최근 작업 내역은 원본 그대로 보존</strong>합니다.
+        </p>
+
+        <div class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-5 space-y-4">
+          <div class="flex items-center justify-between text-xs font-mono">
+            <span>세션 히스토리 구조 변화</span>
+            <button onclick="toggleCompactDemo()" id="btn-compact-demo" class="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-sans font-medium">
+              ⚡ /compact 실행해보기
+            </button>
+          </div>
+
+          <div id="compact-before" class="grid grid-cols-1 md:grid-cols-6 gap-2 text-xs">
+            <div class="p-3 rounded-lg border border-rose-500/40 bg-rose-500/10">
+              <div class="font-bold">Turn 1~5</div>
+              <div class="text-[var(--muted-foreground)] mt-1">초기 파일 탐색 & 로그 (35k tok)</div>
+            </div>
+            <div class="p-3 rounded-lg border border-rose-500/40 bg-rose-500/10">
+              <div class="font-bold">Turn 6~10</div>
+              <div class="text-[var(--muted-foreground)] mt-1">1차 리팩터링 시행착오 (40k tok)</div>
+            </div>
+            <div class="p-3 rounded-lg border border-rose-500/40 bg-rose-500/10">
+              <div class="font-bold">Turn 11~15</div>
+              <div class="text-[var(--muted-foreground)] mt-1">테스트 실패 출력문 (30k tok)</div>
+            </div>
+            <div class="p-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 md:col-span-3">
+              <div class="font-bold text-emerald-500">Turn 16~20 (최근 20,000 토큰 보존 구간)</div>
+              <div class="text-[var(--muted-foreground)] mt-1">현재 수정 중인 파일 diff와 방금 나눈 대화 (원본 100% 유지)</div>
+            </div>
+          </div>
+
+          <div id="compact-after" class="hidden grid grid-cols-1 md:grid-cols-6 gap-2 text-xs">
+            <div class="p-3 rounded-lg border border-sky-500 bg-sky-500/15 md:col-span-2">
+              <div class="font-bold text-sky-400">📦 CompactionEntry (약 2k tok)</div>
+              <div class="text-[var(--muted-foreground)] mt-1">Turn 1~15의 핵심 결정사항, 수정된 파일 목록, 아키텍처 맥락만 구조화 요약! (105k → 2k로 다이어트)</div>
+            </div>
+            <div class="p-3 rounded-lg border border-emerald-500 bg-emerald-500/15 md:col-span-4">
+              <div class="font-bold text-emerald-500">Turn 16~20 (최근 20,000 토큰 원본 그대로 유지)</div>
+              <div class="text-[var(--muted-foreground)] mt-1">방금 작업하던 코드 맥락은 하나도 잃지 않고 쾌적한 속도로 다음 턴 진행!</div>
+            </div>
+          </div>
+
+          <div class="text-xs text-[var(--muted-foreground)] pt-1">
+            💡 <strong>꿀팁:</strong> <code>/compact 인증 모듈 리팩터링 결정사항 위주로 요약해줘</code> 처럼 뒤에 지시사항을 붙이면 내가 원하는 포인트 위주로 압축합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Extension vs Skill vs Context -->
+    <div id="panel-ext" class="space-y-6 hidden">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <h2 class="text-xl font-bold">이 3가지를 구분하면 Pi 활용도가 10배 올라갑니다</h2>
+        <p class="text-sm text-[var(--muted-foreground)]">
+          이미 상태 표시줄에 Copilot Usage를 띄우는 익스텐션을 만들어보셨으니, 이제 <strong>언제 Context를 쓰고, 언제 Skill을 쓰고, 언제 Extension으로 툴을 만들지</strong> 기준을 잡을 차례입니다.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <!-- Context -->
+          <div class="border border-[var(--border)] rounded-xl p-4 space-y-2 bg-[var(--secondary)]">
+            <div class="text-xs font-mono text-amber-500 font-bold">1. Project Context</div>
+            <div class="text-base font-bold"><code>AGENTS.md</code> / <code>CLAUDE.md</code></div>
+            <div class="text-xs text-[var(--muted-foreground)] space-y-1.5 leading-relaxed">
+              <p>• <strong>로딩 시점:</strong> 세션 시작 시 <strong>항상 100% 로드</strong></p>
+              <p>• <strong>용도:</strong> 이 프로젝트의 빌드 명령어, 폴더 구조, 절대 어기면 안 되는 짧은 코딩 규칙</p>
+              <p>• <strong>주의:</strong> 너무 길게 쓰면 매 턴마다 토큰을 갉아먹으므로 핵심만 짧게 유지!</p>
+            </div>
+          </div>
+
+          <!-- Skills -->
+          <div class="border border-[var(--border)] rounded-xl p-4 space-y-2 bg-[var(--secondary)]">
+            <div class="text-xs font-mono text-emerald-500 font-bold">2. Modular Skills</div>
+            <div class="text-base font-bold"><code>.pi/skills/*/SKILL.md</code></div>
+            <div class="text-xs text-[var(--muted-foreground)] space-y-1.5 leading-relaxed">
+              <p>• <strong>로딩 시점:</strong> 평소엔 이름/한줄설명만 알고 있다가, <strong>필요할 때만 Lazy Load!</strong></p>
+              <p>• <strong>용도:</strong> PR 작성 양식, DB 마이그레이션 절차, 사내 디자인 시스템 가이드 등 길고 상세한 매뉴얼</p>
+              <p>• <strong>장점:</strong> 50개를 넣어놔도 평소 컨텍스트 소모가 거의 0에 수렴합니다.</p>
+            </div>
+          </div>
+
+          <!-- Extensions -->
+          <div class="border border-[var(--border)] rounded-xl p-4 space-y-2 bg-[var(--secondary)]">
+            <div class="text-xs font-mono text-sky-500 font-bold">3. TypeScript Extensions</div>
+            <div class="text-base font-bold"><code>.pi/extensions/*.ts</code></div>
+            <div class="text-xs text-[var(--muted-foreground)] space-y-1.5 leading-relaxed">
+              <p>• <strong>로딩 시점:</strong> Pi 런타임에 직접 마운트 (<code>/reload</code>로 핫리로드)</p>
+              <p>• <strong>용도:</strong> UI 상태바 커스텀, 슬래시 명령어(<code>/cmd</code>), <strong>LLM이 호출할 새 도구(Tool) 추가</strong>, 이벤트 가로채기(가드레일)</p>
+              <p>• <strong>장점:</strong> Pi 자체에 없는 기능을 코드로 무한 확장!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deep Dive: Tool vs Skill vs Command -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-5">
+        <div class="space-y-1">
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-500/15 text-emerald-400 text-xs font-mono font-bold">
+            ⭐ 핵심 구분: Tool vs Skill vs Command
+          </div>
+          <h2 class="text-xl font-bold"><code>pi.registerTool</code> vs <code>SKILL.md</code> vs <code>pi.registerCommand</code> 완벽 비교</h2>
+          <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+            <strong>"누가 실행하는가(주체)"</strong>와 <strong>"LLM Request JSON의 어디에 포함되는가(토큰 비용)"</strong>만 알면 언제 무엇을 만들지 1초 만에 결정할 수 있습니다.
+          </p>
+        </div>
+
+        <!-- Analogy Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-4 rounded-xl bg-[var(--secondary)] border border-sky-500/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-sky-400">1. Tool (pi.registerTool)</span>
+              <span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-mono">≈ MCP 도구</span>
+            </div>
+            <div class="font-bold text-sm">🔧 신입 사원에게 쥐여준 "전동 드릴 (함수)"</div>
+            <p class="text-[var(--muted-foreground)] leading-relaxed">
+              AI가 원래 못 하던 물리적 행동(사내 API 호출, 인메모리 처리 등)을 코드로 만들어 <strong>LLM이 스스로 판단해 호출</strong>하게 합니다.
+            </p>
+            <div class="pt-1 text-amber-400 font-mono">
+              ⚠️ 매 턴 Request JSON의 <code>"tools": [...]</code>에 전체 스키마가 포함되어 기본 토큰을 소모합니다.
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[var(--secondary)] border border-emerald-500/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-emerald-400">2. Skill (SKILL.md)</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">≈ Claude Skill</span>
+            </div>
+            <div class="font-bold text-sm">📘 책상에 놓아둔 "업무 매뉴얼 책자"</div>
+            <p class="text-[var(--muted-foreground)] leading-relaxed">
+              새로운 함수를 짜는 대신, <em>"PR 올릴 땐 <code>bash</code> 툴로 이 스크립트를 돌려라"</em>처럼 기존 도구를 쓰는 노하우를 마크다운 글로 가르쳐줍니다.
+            </p>
+            <div class="pt-1 text-emerald-400 font-mono">
+              ✅ 평소엔 <code>"system"</code>에 1줄 요약만 들어가고, 필요할 때만 <code>read</code>로 읽는 지연 로딩(Lazy Load)!
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[var(--secondary)] border border-purple-500/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-purple-400">3. Command (registerCommand)</span>
+              <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">슬래시 단축키</span>
+            </div>
+            <div class="font-bold text-sm">⌨️ 내 키보드에 달린 "전용 단축키 (<code>/명령어</code>)"</div>
+            <p class="text-[var(--muted-foreground)] leading-relaxed">
+              <strong>사람(나)</strong>이 채팅창에 <code>/limit</code>, <code>/tree</code>처럼 직접 쳤을 때만 로컬에서 즉시 실행되는 함수입니다.
+            </p>
+            <div class="pt-1 text-purple-300 font-mono">
+              ⚡ LLM Request JSON에 아예 안 들어가며, 단독 실행 시 토큰 비용 0원 & KV 캐시 유지!
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="overflow-x-auto border border-[var(--border)] rounded-xl">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[var(--secondary)] border-b border-[var(--border)]">
+                <th class="p-3 font-bold">비교 항목</th>
+                <th class="p-3 font-bold text-sky-400"><code>pi.registerTool(...)</code></th>
+                <th class="p-3 font-bold text-emerald-400"><code>SKILL.md</code> (Skill)</th>
+                <th class="p-3 font-bold text-purple-400"><code>pi.registerCommand(...)</code></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[var(--border)]">
+              <tr>
+                <td class="p-3 font-semibold bg-[var(--secondary)]/40">실행 주체</td>
+                <td class="p-3"><strong>LLM (AI 모델)</strong>이 문맥 보고 자동 호출</td>
+                <td class="p-3">LLM이 필요할 때 읽거나, 내가 <code>/skill:이름</code> 호출</td>
+                <td class="p-3"><strong>사람(사용자)</strong>이 <code>/명령어</code> 직접 입력</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-semibold bg-[var(--secondary)]/40">Request JSON 위치</td>
+                <td class="p-3"><code>"tools": [...]</code> 배열에 <strong>전체 스키마 상시 포함</strong></td>
+                <td class="p-3"><code>"system"</code>에 <strong>이름+1줄 설명만 포함</strong> (본문은 필요시 로드)</td>
+                <td class="p-3"><strong>포함 안 됨!</strong> (LLM은 존재조차 모름)</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-semibold bg-[var(--secondary)]/40">토큰 / 비용 소모</td>
+                <td class="p-3">도구 개수만큼 매 턴 기본 입력 토큰 소모</td>
+                <td class="p-3">평소엔 거의 0 토큰 (사용할 때만 소모)</td>
+                <td class="p-3"><strong>0 토큰</strong> (내부에서 새 메시지를 안 보낼 경우)</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-semibold bg-[var(--secondary)]/40">리턴값의 행방</td>
+                <td class="p-3"><code>ToolResult</code>가 다시 LLM에게 전송됨</td>
+                <td class="p-3">매뉴얼 텍스트가 대화 히스토리에 읽혀 들어감</td>
+                <td class="p-3">로컬 TUI 화면 알림/상태 변경 후 즉시 종료</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-semibold bg-[var(--secondary)]/40">언제 쓰면 최고인가?</td>
+                <td class="p-3">TUI 연동, 보안 API 통신 등 <strong>코드 실행이 필수인 AI 도구</strong></td>
+                <td class="p-3">사내 CLI 사용법, PR/커밋 규칙 등 <strong>대부분의 업무 워크플로우</strong></td>
+                <td class="p-3">Copilot 쿼터 확인(<code>/limit</code>), 캐시 타이머 등 <strong>UI/매크로 제어</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Next-Level Extension Examples -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 class="text-xl font-bold">익스텐션 레벨업: UI 표시를 넘어 '에이전트 개조'하기</h2>
+            <p class="text-xs text-[var(--muted-foreground)]">Copilot Usage 표시에 성공하셨다면, 다음 단계로 바로 써먹기 좋은 3가지 익스텐션 패턴입니다.</p>
+          </div>
+          <div class="flex gap-1.5">
+            <button onclick="showExtCode('guard')" id="ext-btn-guard" class="px-3 py-1.5 rounded-lg text-xs bg-[var(--primary)] text-[var(--primary-foreground)] font-medium">패턴 1: 위험 명령 차단 훅</button>
+            <button onclick="showExtCode('tool')" id="ext-btn-tool" class="px-3 py-1.5 rounded-lg text-xs bg-[var(--secondary)] border border-[var(--border)]">패턴 2: 커스텀 Tool 추가</button>
+            <button onclick="showExtCode('cmd')" id="ext-btn-cmd" class="px-3 py-1.5 rounded-lg text-xs bg-[var(--secondary)] border border-[var(--border)]">패턴 3: /명령어 자동화</button>
+          </div>
+        </div>
+
+        <div id="ext-code-viewer" class="bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-4 font-mono text-xs leading-relaxed">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs space-y-1">
+          <div class="font-bold text-amber-500">🔥 Pi 고수들의 비기: 메타프로그래밍 (Pi에게 Pi를 개조시키기)</div>
+          <p class="text-[var(--muted-foreground)] leading-relaxed">
+            직접 익스텐션 문법을 다 외울 필요가 없습니다! Pi 안에서 <em>"내가 <code>/pr-check</code>라고 치면 현재 git diff를 읽어서 사내 컨벤션 체크하는 익스텐션을 <code>.pi/extensions/</code>에 만들어줘"</em>라고 시킨 뒤, 완성되면 <strong><code>/reload</code></strong>만 치면 재시작 없이 그 자리에서 바로 새 기능이 작동합니다.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Practical Cheat Sheet -->
+    <div id="panel-tips" class="space-y-6 hidden">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 space-y-4">
+        <h2 class="text-xl font-bold">회사에서 바로 쓰는 Pi 필수 명령어 & 단축키</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-[var(--secondary)] border border-[var(--border)] flex justify-between items-center">
+            <div>
+              <span class="font-mono font-bold text-emerald-500">/tree</span>
+              <p class="text-[var(--muted-foreground)] mt-0.5">대화 히스토리 트리를 열고 원하는 과거 시점으로 분기</p>
+            </div>
+            <span class="px-2 py-1 rounded bg-[var(--card)] font-mono">필수</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-[var(--secondary)] border border-[var(--border)] flex justify-between items-center">
+            <div>
+              <span class="font-mono font-bold text-sky-500">/compact [지시어]</span>
+              <p class="text-[var(--muted-foreground)] mt-0.5">최근 맥락은 남기고 이전 대화만 요약해 컨텍스트 확보</p>
+            </div>
+            <span class="px-2 py-1 rounded bg-[var(--card)] font-mono">필수</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-[var(--secondary)] border border-[var(--border)] flex justify-between items-center">
+            <div>
+              <span class="font-mono font-bold text-amber-500">/reload</span>
+              <p class="text-[var(--muted-foreground)] mt-0.5">방금 수정한 익스텐션(.ts)이나 스킬(SKILL.md) 즉시 반영</p>
+            </div>
+            <span class="px-2 py-1 rounded bg-[var(--card)] font-mono">개발용</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-[var(--secondary)] border border-[var(--border)] flex justify-between items-center">
+            <div>
+              <span class="font-mono font-bold text-purple-400">/model</span>
+              <p class="text-[var(--muted-foreground)] mt-0.5">대화 도중 다른 모델(Copilot, Claude, Gemini 등)로 즉시 교체</p>
+            </div>
+            <span class="px-2 py-1 rounded bg-[var(--card)] font-mono">스위칭</span>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-[var(--border)] space-y-2">
+          <h3 class="text-base font-bold">🚀 입문자 다음 단계 추천 루트</h3>
+          <ol class="list-decimal list-inside text-sm text-[var(--muted-foreground)] space-y-1.5">
+            <li>회사 프로젝트 루트에 짧은 <strong><code>AGENTS.md</code></strong>(빌드/테스트 명령어 5줄 요약)를 만든다.</li>
+            <li>반복해서 시키는 작업(예: 코드 리뷰, PR 본문 작성, 커밋 메시지 생성)을 <strong><code>.pi/skills/</code></strong> 아래에 마크다운으로 정리한다.</li>
+            <li>Copilot Limit 익스텐션 옆에 <strong>구독한 Gemini API를 서브 분석기로 부르는 커스텀 툴 익스텐션</strong>을 하나 추가한다.</li>
+            <li>두 번째 가이드인 <strong>Git Worktree</strong>와 결합해 여러 개의 Pi를 동시에 굴린다!</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Tab switching
+    function switchTab(tabId) {
+      ['arch', 'tree', 'ext', 'tips'].forEach(id => {
+        document.getElementById('panel-' + id).classList.add('hidden');
+        const btn = document.getElementById('tab-' + id);
+        btn.classList.remove('active');
+        btn.classList.add('bg-[var(--secondary)]');
+      });
+      document.getElementById('panel-' + tabId).classList.remove('hidden');
+      const activeBtn = document.getElementById('tab-' + tabId);
+      activeBtn.classList.add('active');
+      activeBtn.classList.remove('bg-[var(--secondary)]');
+    }
+
+    // Agent Loop Steps
+    const loopSteps = [
+      {
+        title: "STEP 01. 초경량 프롬프트 + 동적 컨텍스트 조립",
+        desc: "사용자가 프롬프트를 입력하면 Pi는 1,000 토큰 미만의 코어 시스템 프롬프트에 프로젝트의 AGENTS.md, 그리고 현재 활성화된 스킬(SKILL.md)의 요약 목록만 가볍게 합쳐서 요청 페이로드를 구성합니다.",
+        code: `[System Prompt (<1k tok)] + [AGENTS.md] + [Available Skill Headers]\n+ [Session Tree Branch History] + [User: "로그인 토큰 만료 버그 고쳐줘"]`
+      },
+      {
+        title: "STEP 02. pi-ai 통합 레이어를 통한 스트리밍 추론",
+        desc: "설정된 모델(GitHub Copilot, Claude, Gemini 등)로 스트리밍 요청을 보냅니다. 이때 직접 만드신 Copilot Usage 익스텐션 같은 상태 감시 훅들이 토큰 소비량과 Rate Limit 헤더를 실시간으로 캡처할 수 있습니다.",
+        code: `turn_start 이벤트 발생 ──▶ pi-ai 스트리밍 응답 수신 ──▶ TUI 실시간 렌더링`
+      },
+      {
+        title: "STEP 03. 4대 원시 도구(read/write/edit/bash) 또는 커스텀 Tool 실행",
+        desc: "모델이 도구 호출(Tool Call)을 요청하면 Pi가 로컬에서 실행합니다. 이때 Extension의 'tool_call' 이벤트 훅이 먼저 동작하여 위험한 명령(예: rm -rf, git push --force)을 차단하거나 승인 팝업을 띄울 수 있습니다.",
+        code: `LLM 요청: bash({ command: "rg 'tokenExpire' src/" })\n──▶ Extension Hook 검열 통과 ──▶ 로컬 실행 후 stdout/stderr 캡처`
+      },
+      {
+        title: "STEP 04. 재귀적 에이전트 루프 (완료될 때까지 반복)",
+        desc: "도구 실행 결과(파일 내용, 검색 결과, 테스트 에러 로그)를 다시 대화 히스토리에 붙여서 LLM에게 재전송합니다. 모델이 더 이상 도구를 부르지 않고 최종 답변을 내놓을 때까지 2~3번 과정을 스스로 반복합니다.",
+        code: `read("src/auth.ts") ──▶ edit("src/auth.ts") ──▶ bash("npm test") ──▶ 테스트 통과 확인!`
+      },
+      {
+        title: "STEP 05. JSONL 트리 노드 기록 및 자동 Compaction 체크",
+        desc: "턴이 끝나면 결과를 로컬 JSONL 세션 트리에 새 노드로 저장합니다. 만약 누적 토큰이 임계치에 도달했다면 다음 턴 시작 전에 자동으로 오래된 턴을 요약(Compaction)해 컨텍스트 여유 공간을 확보합니다.",
+        code: `~/.pi/agent/sessions/session-xyz.jsonl 에 트리 노드로 영구 기록 완료`
+      }
+    ];
+
+    let currentLoopStep = 0;
+    function setLoopStep(idx) {
+      currentLoopStep = idx;
+      for (let i = 0; i < 5; i++) {
+        const el = document.getElementById('loop-btn-' + i);
+        if (i === idx) el.classList.add('active');
+        else el.classList.remove('active');
+      }
+      const s = loopSteps[idx];
+      document.getElementById('loop-detail').innerHTML = `
+        <div class="font-bold text-base">${s.title}</div>
+        <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">${s.desc}</p>
+        <pre class="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 text-xs font-mono text-emerald-400">${s.code}</pre>
+      `;
+    }
+    function nextLoopStep() { setLoopStep((currentLoopStep + 1) % 5); }
+    function prevLoopStep() { setLoopStep((currentLoopStep + 4) % 5); }
+
+    // Tree Visualizer
+    function setTreeMode(mode) {
+      const btnLinear = document.getElementById('btn-mode-linear');
+      const btnPi = document.getElementById('btn-mode-pi');
+      const box = document.getElementById('tree-visualizer');
+
+      if (mode === 'linear') {
+        btnLinear.className = "px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] bg-[var(--primary)] text-[var(--primary-foreground)] font-semibold";
+        btnPi.className = "px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] bg-[var(--secondary)]";
+        box.innerHTML = `
+          <div class="space-y-3 text-xs">
+            <div class="font-bold text-rose-500">❌ 일반 선형 채팅 에이전트: 실패한 시도가 컨텍스트에 영구히 남음</div>
+            <div class="flex flex-wrap items-center gap-2 font-mono">
+              <span class="px-3 py-1.5 rounded bg-[var(--card)] border border-[var(--border)]">1. 요구사항 파악</span>
+              <span>→</span>
+              <span class="px-3 py-1.5 rounded bg-rose-500/20 border border-rose-500 text-rose-400">2. A 방식으로 구현 (에러 폭발)</span>
+              <span>→</span>
+              <span class="px-3 py-1.5 rounded bg-rose-500/20 border border-rose-500 text-rose-400">3. 억지 수정 시도 (또 실패)</span>
+              <span>→</span>
+              <span class="px-3 py-1.5 rounded bg-amber-500/20 border border-amber-500">4. "B 방식으로 다시 해줘" (A의 잔재 때문에 코드 꼬임)</span>
+            </div>
+            <p class="text-[var(--muted-foreground)]">결국 컨텍스트가 더러워져서 세션을 아예 새로 파고 처음부터 다시 설명해야 합니다.</p>
+          </div>
+        `;
+      } else {
+        btnPi.className = "px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] bg-[var(--primary)] text-[var(--primary-foreground)] font-semibold";
+        btnLinear.className = "px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] bg-[var(--secondary)]";
+        box.innerHTML = `
+          <div class="space-y-3 text-xs">
+            <div class="font-bold text-emerald-500">✅ Pi의 /tree 방식: 실패한 가지는 버리고 1번 시점에서 깨끗하게 새 분기 생성!</div>
+            <div class="space-y-2 font-mono">
+              <div class="flex flex-wrap items-center gap-2 opacity-50">
+                <span class="px-3 py-1.5 rounded bg-[var(--card)] border border-[var(--border)]">1. 요구사항 파악</span>
+                <span>↘ (버려진 가지)</span>
+                <span class="px-3 py-1.5 rounded border border-[var(--border)] line-through">2a. A 방식 삽질</span>
+                <span>→</span>
+                <span class="px-3 py-1.5 rounded border border-[var(--border)] line-through">3a. 에러 로그 3만 토큰</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-3 py-1.5 rounded bg-emerald-500/20 border border-emerald-500 font-bold">1. 요구사항 파악 (/tree 로 복귀!)</span>
+                <span>↪ (새 브랜치)</span>
+                <span class="px-3 py-1.5 rounded bg-emerald-500/20 border border-emerald-500 text-emerald-400 font-bold">2b. "B 방식으로 구현해줘" (오염 0%, 깔끔한 성공!)</span>
+              </div>
+            </div>
+            <p class="text-[var(--muted-foreground)]">1번에서 이미 읽어들인 파일 컨텍스트는 그대로 재활용하면서, 2a~3a의 실패 기록만 완벽히 도려냅니다.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Compaction toggle
+    let isCompacted = false;
+    function toggleCompactDemo() {
+      isCompacted = !isCompacted;
+      const before = document.getElementById('compact-before');
+      const after = document.getElementById('compact-after');
+      const btn = document.getElementById('btn-compact-demo');
+      if (isCompacted) {
+        before.classList.add('hidden');
+        after.classList.remove('hidden');
+        btn.textContent = "↺ 압축 전 상태로 되돌리기";
+      } else {
+        after.classList.add('hidden');
+        before.classList.remove('hidden');
+        btn.textContent = "⚡ /compact 실행해보기";
+      }
+    }
+
+    // Extension Code Examples
+    const extCodes = {
+      guard: `// .pi/extensions/safe-guard.ts
+// 모델이 위험한 bash 명령어를 실행하기 직전에 가로채서 차단합니다.
+export default function (pi) {
+  pi.on("tool_call", async (event, ctx) => {
+    if (event.toolName === "bash") {
+      const cmd = event.args.command || "";
+      if (cmd.includes("rm -rf") || cmd.includes("git push --force")) {
+        ctx.ui.notify("🚨 위험한 명령어가 차단되었습니다: " + cmd, "error");
+        return { block: true, reason: "보안 정책상 강제 삭제/푸시는 금지되어 있습니다." };
+      }
+    }
+  });
+}`,
+      tool: `// .pi/extensions/gemini-analyzer.ts
+// 구독한 Gemini의 대용량 컨텍스트에 무거운 로그/아키텍처 질문을 위임하는 커스텀 Tool 등록
+export default function (pi) {
+  pi.registerTool({
+    name: "ask_gemini_long_context",
+    description: "대용량 로그 파일이나 전체 레포지토리 구조 분석이 필요할 때 호출합니다.",
+    parameters: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "분석할 질문" },
+        targetPath: { type: "string", description: "대상 파일 또는 폴더 경로" }
+      },
+      required: ["question", "targetPath"]
+    },
+    async execute({ question, targetPath }) {
+      // Gemini CLI 또는 API를 호출해 요약 결과만 반환하여 Pi 메인 컨텍스트 절약!
+      return { content: \`[Gemini 분석 요약 결과]: \${targetPath}에 대한 핵심 원인 분석...\` };
+    }
+  });
+}`,
+      cmd: `// .pi/extensions/quick-pr.ts
+// 터미널에서 '/pr-ready' 만 치면 git diff를 읽고 사내 템플릿에 맞춰 PR 초안을 작성합니다.
+export default function (pi) {
+  pi.registerCommand("pr-ready", {
+    description: "현재 브랜치의 변경사항으로 사내 양식 PR 본문 자동 생성",
+    async handler(args, ctx) {
+      pi.sendUserMessage(
+        "git diff main...HEAD 를 실행해서 변경사항을 분석한 뒤, " +
+        "1) 변경 요약 2) 주요 수정 파일 3) 테스트 결과 양식으로 PR 설명을 작성해줘."
+      );
+    }
+  });
+}`
+    };
+
+    function showExtCode(key) {
+      ['guard', 'tool', 'cmd'].forEach(k => {
+        const btn = document.getElementById('ext-btn-' + k);
+        if (k === key) {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs bg-[var(--primary)] text-[var(--primary-foreground)] font-medium";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs bg-[var(--secondary)] border border-[var(--border)]";
+        }
+      });
+      document.getElementById('ext-code-viewer').innerHTML = `<pre>${extCodes[key]}</pre>`;
+    }
+
+    // Initialize defaults
+    setLoopStep(0);
+    setTreeMode('pi');
+    showExtCode('guard');
+  </script>
+</body>
+</html>
+
